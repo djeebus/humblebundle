@@ -791,6 +791,23 @@ def main(argv=None):
                            serverfile=args.serverfile):
             return 1
 
+    elif args.download_all:
+        for bundle_name, bundle in hb.bundles.items():
+            for game_name in bundle['games']:
+                game = hb.get_game(game_name)
+
+                print("%s: %s" % (bundle_name, game_name))
+
+                hb.download(
+                    name=game_name,
+                    path=args.path,
+                    dtype=args.type,
+                    arch=args.arch,
+                    bittorrent=args.bittorrent,
+                    platform=args.platform,
+                    serverfile=args.serverfile,
+                )
+
     elif args.install:
         hb.install(args.install, args.method)
 
@@ -899,6 +916,9 @@ def parseargs(argv=None):
                         help="Install selected game")
     group.add_argument('-I', '--uninstall', dest='uninstall', metavar="GAME",
                         help="Uninstall selected game")
+    group.add_argument('--download-all', dest='download_all',
+                       default=False, action='store_true',
+                       help="Download all install files")
 
     group = parser.add_argument_group("Show Options")
     group.add_argument('-j', '--json', dest='json',
