@@ -61,7 +61,9 @@ DATADIR   = osp.dirname(osp.realpath(__file__))
 CONFIGDIR = osp.join(xdg.xdg_config_home, APPNAME)
 CACHEDIR  = osp.join(xdg.xdg_cache_home, APPNAME)
 
-
+if sys.stdout.encoding != 'cp850':
+    import codecs
+    sys.stdout = codecs.getwriter('cp850')(sys.stdout, 'strict')
 
 
 class HumbleBundleError(Exception):
@@ -85,7 +87,7 @@ class HumbleBundle(httpbot.HttpBot):
 
         if not os.path.isdir(self.configdir):
             # Create the config dir as xdg would. Let exceptions bubble up
-            os.makedirs(self.configdir, 0700)
+            os.makedirs(self.configdir, 0o700)
 
         self.cookiejar = cookielib.MozillaCookieJar(
                             filename=osp.join(self.configdir,
@@ -213,7 +215,7 @@ class HumbleBundle(httpbot.HttpBot):
                 with open(path, 'w') as f:
                     json.dump(getattr(self, obj), f,
                               indent=2, separators=(',', ': '), sort_keys=True)
-                os.chmod(path, 0600)
+                os.chmod(path, 0o600)
             except IOError as e:
                 log.error("Error saving cache data: %s", e)
 
@@ -311,8 +313,8 @@ class HumbleBundle(httpbot.HttpBot):
                                  serverfile=serverfile,
                                  retry=False)
 
-        print "Downloading '%s' [%s]\t%s" % (
-            game['human_name'], game['machine_name'], self._download_info(d))
+        print("Downloading '%s' [%s]\t%s" % (
+            game['human_name'], game['machine_name'], self._download_info(d)))
         try:
             return super(HumbleBundle, self).download(url, path,
                                                       d.get('md5', '').lower())
@@ -628,7 +630,7 @@ class HumbleBundle(httpbot.HttpBot):
                 log.debug("Saving cookies to '%s'", self.cookiejar.filename)
                 try:
                     self.cookiejar.save()
-                    os.chmod(self.cookiejar.filename, 0600)
+                    os.chmod(self.cookiejar.filename, 0o600)
                 except IOError as e:
                     log.error("Error saving cookies: %s", e)
 
@@ -721,17 +723,17 @@ def main(argv=None):
         else:
             games = (_ for _ in hb.games.keys() if re.search(args.list, _))
         for game in sorted(games):
-            print "%s" % game
+            print("%s" % game)
 
     elif args.show:
         def print_key(key, alias=None, obj=None):
-            print "%-10s: %s" % (alias or key,
-                                 getattr(obj or game, 'get')(key.lower(), ''))
+            print("%-10s: %s" % (alias or key,
+                                 getattr(obj or game, 'get')(key.lower(), '')))
 
         game = hb.get_game(args.show)
         if args.json:
-            print json.dumps(game, indent=2, separators=(',', ': '),
-                             sort_keys=True)
+            print(json.dumps(game, indent=2, separators=(',', ': '),
+                             sort_keys=True))
             return
         print_key('machine_name', 'Game')
         print_key('human_name', 'Name')
@@ -740,32 +742,32 @@ def main(argv=None):
         print_key('', 'Bundles')
         for bundle in hb.bundles.itervalues():
             if game.get('machine_name', '') in bundle.get('games', []):
-                print "\t%s [%s]" % (bundle['human_name'],
-                                     bundle['machine_name'])
+                print("\t%s [%s]" % (bundle['human_name'],
+                                     bundle['machine_name']))
         print_key('', 'Downloads')
         platform_prev = None
         for download in sorted(game.get('downloads', []),
                                key=lambda k: k['platform']):
             platform = download.get('platform', '')
             if platform_prev != platform:
-                print "\t%s" % platform
+                print("\t%s" % platform)
                 platform_prev = platform
             for d in download.get('download_struct', []):
                 if 'url' not in d:
                     continue
                 a = " %s-bit" % d['arch'] if d.get('arch', None) else ""
-                print "\t\t%-20s%s\t%8s\t%s" % (d['name'], a, d['human_size'],
-                                                hb._download_basename(d))
+                print("\t\t%-20s%s\t%8s\t%s" % (d['name'], a, d['human_size'],
+                                                hb._download_basename(d)))
 
     elif args.show_bundle:
         def print_key(key, alias=None, obj=None):
-            print "%-10s: %s" % (alias or key,
-                                 getattr(obj or bundle, 'get')(key.lower(), ''))
+            print("%-10s: %s" % (alias or key,
+                                 getattr(obj or bundle, 'get')(key.lower(), '')))
 
         bundle = hb.get_bundle(args.show_bundle)
         if args.json:
-            print json.dumps(bundle, indent=2, separators=(',', ': '),
-                             sort_keys=True)
+            print(json.dumps(bundle, indent=2, separators=(',', ': '),
+                             sort_keys=True))
             return
         print_key('machine_name', 'Bundle')
         print_key('human_name', 'Name')
@@ -774,7 +776,7 @@ def main(argv=None):
         print_key('', 'Games')
         for name in sorted(bundle['games']):
             game = hb.get_game(name)
-            print "\t%s\t[%s]" % (game['human_name'], game['machine_name'])
+            print("\t%s\t[%s]" % (game['human_name'], game['machine_name']))
 
     elif args.list_bundles:
         for bundle in sorted(hb.bundles.items()):
@@ -798,15 +800,21 @@ def main(argv=None):
 
                 print("%s: %s" % (bundle_name, game_name))
 
-                hb.download(
-                    name=game_name,
-                    path=args.path,
-                    dtype=args.type,
-                    arch=args.arch,
-                    bittorrent=args.bittorrent,
-                    platform=args.platform,
-                    serverfile=args.serverfile,
-                )
+                for download in game['downloads']:
+                    # import pdb; pdb.set_trace()
+                    hb.download(
+                        name=game_name,
+                        path=os.path.join(
+                            args.path or '',
+                            download['platform'],
+                            game['machine_name'],
+                        ) + '/',
+                        dtype=download.get('name'),
+                        arch=None,
+                        bittorrent=args.bittorrent,
+                        platform=download['platform'],
+                        serverfile=args.serverfile,
+                    )
 
     elif args.install:
         hb.install(args.install, args.method)
@@ -861,7 +869,7 @@ def read_config(args, appname=None, configdir=None):
                 with open(config, 'w') as fd:
                     fd.write("%s\n%s\n" % (args.username or username,
                                            args.password or password,))
-                os.chmod(config, 0600)
+                os.chmod(config, 0o600)
             except IOError as e:
                 log.error(e)
 
