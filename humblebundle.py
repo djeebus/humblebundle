@@ -795,26 +795,33 @@ def main(argv=None):
 
     elif args.download_all:
         for bundle_name, bundle in hb.bundles.items():
+            if args.bundle and args.bundle != bundle_name:
+                continue
+
             for game_name in bundle['games']:
                 game = hb.get_game(game_name)
 
                 print("%s: %s" % (bundle_name, game_name))
 
-                for download in game['downloads']:
-                    # import pdb; pdb.set_trace()
-                    hb.download(
-                        name=game_name,
-                        path=os.path.join(
-                            args.path or '',
-                            download['platform'],
-                            game['machine_name'],
-                        ) + '/',
-                        dtype=download.get('name'),
-                        arch=None,
-                        bittorrent=args.bittorrent,
-                        platform=download['platform'],
-                        serverfile=args.serverfile,
-                    )
+                for platform in game['downloads']:
+                    for download in platform.get('download_struct', []):
+                        try:
+                            hb.download(
+                                name=game_name,
+                                path=os.path.join(
+                                    args.path or '',
+                                    platform['platform'],
+                                    game['machine_name'],
+                                ) + '/',
+                                dtype=download.get('name'),
+                                arch=download.get('arch'),
+                                bittorrent=args.bittorrent,
+                                platform=platform['platform'],
+                            )
+                        except KeyboardInterrupt:
+                            raise
+                        except:
+                            log.exception('failed to download')
 
     elif args.install:
         hb.install(args.install, args.method)
@@ -959,6 +966,8 @@ def parseargs(argv=None):
                         help="Path to download. If PATH is a directory,"
                             " default download basename will be used."
                             " If omitted, download to current directory.")
+    group.add_argument('--bundle', dest='bundle',
+                       help='name of the bundle to download')
 
     group = parser.add_argument_group("Install Options")
     group.add_argument('-m', '--method', dest='method',
